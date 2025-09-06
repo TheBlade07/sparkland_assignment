@@ -20,6 +20,7 @@ FetchContent_MakeAvailable(simdjson)
 
 add_library(sparkland_lib
     src/coinbase_client.cpp
+    src/tick_parser.cpp
 )
 
 # Include directories

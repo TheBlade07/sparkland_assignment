@@ -14,17 +14,11 @@ class RingBuffer {
 private:
     alignas(64) std::atomic<size_t> m_head{0};  // Pop index
     alignas(64) std::atomic<size_t> m_tail{0};  // Push index
-    std::array<T*, Capacity> m_buffer;
+    std::array<T, Capacity> m_buffer;           // Preallocated slots
 
 public:
     RingBuffer() = default;
-    ~RingBuffer() {
-        // Clean up any remaining items
-        T* item = nullptr;
-        while (pop(item)) {
-            delete item;
-        }
-    }
+    ~RingBuffer() = default;
 
     // Delete copy/move operations
     RingBuffer(const RingBuffer&) = delete;
@@ -32,32 +26,43 @@ public:
     RingBuffer(RingBuffer&&) = delete;
     RingBuffer& operator=(RingBuffer&&) = delete;
 
-    bool push(T* item) {
+    // Get reference to next slot to fill
+    T* acquire_free_slot() {
         size_t current_tail = m_tail.load(std::memory_order_relaxed);
         size_t next_tail = (current_tail + 1) % Capacity;
 
         // Check if buffer is full
         if (next_tail == m_head.load(std::memory_order_acquire)) {
-            return false;
+            return nullptr;
         }
 
-        m_buffer[current_tail] = item;
-        m_tail.store(next_tail, std::memory_order_release);
-        return true;
+        return &m_buffer[current_tail];
     }
 
-    bool pop(T*& item) {
+    // Publish after filling slot
+    void publish_slot() {
+        size_t current_tail = m_tail.load(std::memory_order_relaxed);
+        size_t next_tail = (current_tail + 1) % Capacity;
+        m_tail.store(next_tail, std::memory_order_release);
+    }
+
+    // Try to get reference to next filled slot
+    T* acquire_filled_slot() {
         size_t current_head = m_head.load(std::memory_order_relaxed);
 
         // Check if buffer is empty
         if (current_head == m_tail.load(std::memory_order_acquire)) {
-            return false;
+            return nullptr;
         }
 
-        item = m_buffer[current_head];
+        return &m_buffer[current_head];
+    }
+
+    // Release after reading slot
+    void release_slot() {
+        size_t current_head = m_head.load(std::memory_order_relaxed);
         size_t next_head = (current_head + 1) % Capacity;
         m_head.store(next_head, std::memory_order_release);
-        return true;
     }
 
     bool empty() const {
@@ -80,8 +85,8 @@ public:
         }
     }
 
-    size_t capacity() const {
-        return Capacity - 1; // One slot always unused
+    constexpr size_t capacity() const {
+        return Capacity - 1; // one slot always unused
     }
 };
 

@@ -67,7 +67,6 @@ void CoinbaseClient::on_open(websocketpp::connection_hdl hdl) {
 
 void CoinbaseClient::on_message(websocketpp::connection_hdl, AsioClient::message_ptr msg) {
     if (m_handler) {
-        // Pass zero-copy payload to handler
         simdjson::padded_string payload(msg->get_payload().data(), msg->get_payload().size());
         m_handler(payload);
     }

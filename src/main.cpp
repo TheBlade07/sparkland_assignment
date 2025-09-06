@@ -1,25 +1,24 @@
 #include "sparkland/coinbase_client.h"
-#include <simdjson.h>
+#include "sparkland/ring_buffer.h"
+#include "sparkland/tick.h"
+#include "sparkland/tick_parser.h"
 
 int main() {
+
+    // pre allocated a buffer to use
+    sparkland::RingBuffer<sparkland::Tick, 1024> ring_buffer;
+
+    // Create tick parser
+    sparkland::TickParser parser(ring_buffer);
+
+    // create a client to connect with coinbase
     sparkland::CoinbaseClient client("wss://ws-feed.exchange.coinbase.com", "BTC-USD");
 
-    client.set_message_handler([](simdjson::padded_string_view payload){
-        std::cout<<"Yes"<<std::endl;
-        simdjson::ondemand::parser parser;
-        auto doc = parser.iterate(payload);
-    
-        // Method 1: Use find_field() instead of operator[]
-        auto price_field = doc.find_field("price");
-        std::cout<<"Yes"<<std::endl;
-        if (!price_field.error()) {
-            double price = price_field.get_double();
-            std::cout << "Price: " << price << "\n";
-        } else {
-            std::cout << "Price field not found in JSON\n";
+    client.set_message_handler([&parser](simdjson::padded_string_view payload){
+        if (!parser.parse_and_push(payload)) {
+            std::cerr << "Failed to push tick into ring buffer\n";
         }
-    });
-    
+    });    
 
     client.start();
 
