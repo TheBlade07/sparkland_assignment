@@ -9,8 +9,8 @@
 
 namespace sparkland {
 
-CoinbaseClient::CoinbaseClient(const std::string& uri, const std::string& product_id)
-    : m_uri(uri), m_product_id(product_id) {
+CoinbaseClient::CoinbaseClient(const std::string& uri, const std::vector<std::string>& product_ids)
+    : m_uri(uri), m_product_ids(product_ids) {
     m_client.clear_access_channels(websocketpp::log::alevel::all);
     m_client.init_asio();
 
@@ -84,8 +84,14 @@ void CoinbaseClient::on_close(websocketpp::connection_hdl) {
 
 void CoinbaseClient::send_subscribe() {
     std::ostringstream oss;
-    oss << R"({"type": "subscribe", "product_ids": [")" << m_product_id
-        << R"("], "channels": ["ticker"]})";
+    oss << R"({"type": "subscribe", "product_ids": [)";
+    for (size_t i = 0; i < m_product_ids.size(); ++i) {
+        oss << "\"" << m_product_ids[i] << "\"";
+        if (i < m_product_ids.size() - 1) {
+            oss << ", ";
+        }
+    }
+    oss << R"(], "channels": ["ticker"]})";
 
     websocketpp::lib::error_code ec;
     m_client.send(m_hdl, oss.str(), websocketpp::frame::opcode::text, ec);

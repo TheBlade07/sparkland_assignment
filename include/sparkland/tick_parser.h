@@ -14,7 +14,7 @@ namespace sparkland {
 
 class TickParser {
 public:
-    TickParser(TickRingBuffer& ringBuffer);
+    TickParser(TickRingBuffer& ringBuffer, const std::vector<std::string>& product_ids);
     
     // Parse incoming JSON packet into next available Tick slot
     // Returns true if successfully parsed & pushed, false if buffer full or parse error

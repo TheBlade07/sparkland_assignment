@@ -19,7 +19,7 @@ using MessageHandler = std::function<void(simdjson::padded_string_view)>;
 
 class CoinbaseClient {
 public:
-    CoinbaseClient(const std::string& uri, const std::string& product_id);
+    CoinbaseClient(const std::string& uri, const std::vector<std::string>& product_ids);
     ~CoinbaseClient();
 
     // Delete copy constructor and assignment operator
@@ -45,7 +45,7 @@ private:
 
 private:
     std::string m_uri;
-    std::string m_product_id;
+    std::vector<std::string> m_product_ids;
     MessageHandler m_handler;
 
     AsioClient m_client;

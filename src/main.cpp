@@ -15,14 +15,21 @@ int main() {
     // pre allocated a buffer to use
     sparkland::TickRingBuffer ring_buffer;
 
+    // Ticker symbol to subscribe
+    std::vector<std::string> products = {
+        "BTC-USD",
+        "ETH-USD", 
+        "SOL-USD",
+    };
+
     // Create tick parser
-    sparkland::TickParser parser(ring_buffer);
+    sparkland::TickParser parser(ring_buffer, products);
     sparkland::CSVLogger logger(ring_buffer, "ticks.csv");
 
     logger.start();
 
     // create a client to connect with coinbase
-    sparkland::CoinbaseClient client("wss://ws-feed.exchange.coinbase.com", "ETH-USD");
+    sparkland::CoinbaseClient client("wss://ws-feed.exchange.coinbase.com", products);
 
     client.set_message_handler([&parser](simdjson::padded_string_view payload){
         if (!parser.parse_and_push(payload)) {

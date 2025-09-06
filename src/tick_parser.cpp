@@ -2,10 +2,11 @@
 
 namespace sparkland {
 
-TickParser::TickParser(TickRingBuffer& ringBuffer)
+TickParser::TickParser(TickRingBuffer& ringBuffer, const std::vector<std::string>& product_ids)
     : m_ring_buffer(ringBuffer) {
     
-    m_ema_store.emplace("ETH-USD", EMA(5));
+    for(auto products: product_ids)
+        m_ema_store.emplace(products, EMA(5));
 }
 
 bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
