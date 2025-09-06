@@ -14,7 +14,7 @@ CSVLogger::CSVLogger(TickRingBuffer& ring_buffer, const std::string& filename)
 
     // Write header row
     m_file << "type,sequence,product_id,price,open_24h,volume_24h,low_24h,high_24h,"
-           << "volume_30d,best_bid,best_bid_size,best_ask,best_ask_size,side,time,trade_id,last_size\n";
+           << "volume_30d,best_bid,best_bid_size,best_ask,best_ask_size,side,time,trade_id,last_size,price_ema,mid_price_ema\n";
 }
 
 CSVLogger::~CSVLogger() {
@@ -58,7 +58,9 @@ void CSVLogger::run() {
                    << tick->side << ","
                    << tick->time << ","
                    << tick->trade_id << ","
-                   << tick->last_size
+                   << tick->last_size << ","
+                   << tick->price_ema << ","
+                   << tick->mid_price_ema
                    << "\n";
             
             // Return slot to free state

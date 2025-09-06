@@ -1,12 +1,12 @@
 #include "sparkland/tick_parser.h"
-#include <iostream>
-#include <cstring>
-#include <simdjson.h>
 
 namespace sparkland {
 
 TickParser::TickParser(TickRingBuffer& ringBuffer)
-    : m_ring_buffer(ringBuffer) {}
+    : m_ring_buffer(ringBuffer) {
+    
+    m_ema_store.emplace("ETH-USD", EMA(5));
+}
 
 bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
     try {
@@ -38,8 +38,14 @@ bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
         slot->side[side_str.size()] = '\0';
         
         auto time_str = doc["time"].get_string().value();
+
+        // Parsing iso time string for EMA
+        // Optimization: Use system time instead of exchange time if clocks are in sync
+        auto tick_time = parse_iso8601(time_str, time_str.size());
+
         std::memcpy(slot->time, time_str.data(), time_str.size());
-        slot->side[time_str.size()] = '\0';
+        slot->time[time_str.size()] = '\0';
+        // std::cout<<time_str<<" " << slot->time<<std::endl;
 
         slot->sequence = doc["sequence"].get_uint64();
         slot->trade_id = doc["trade_id"].get_uint64();
@@ -55,6 +61,12 @@ bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
         slot->best_ask = std::stod(std::string(doc["best_ask"].get_string().value()));
         slot->best_ask_size = std::stod(std::string(doc["best_ask_size"].get_string().value()));
         slot->last_size = std::stod(std::string(doc["last_size"].get_string().value()));
+        slot->mid_price = (slot->best_bid + slot->best_ask) / 2;
+       
+        auto& product_ema = m_ema_store.at(slot->product_id);
+        product_ema.update(slot->price, slot->mid_price, tick_time);
+        slot->price_ema = product_ema.price_ema();
+        slot->mid_price_ema = product_ema.mid_ema();
 
         // Make it available for logging
         m_ring_buffer.publish_slot();

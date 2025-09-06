@@ -22,7 +22,7 @@ int main() {
     logger.start();
 
     // create a client to connect with coinbase
-    sparkland::CoinbaseClient client("wss://ws-feed.exchange.coinbase.com", "BTC-USD");
+    sparkland::CoinbaseClient client("wss://ws-feed.exchange.coinbase.com", "ETH-USD");
 
     client.set_message_handler([&parser](simdjson::padded_string_view payload){
         if (!parser.parse_and_push(payload)) {
