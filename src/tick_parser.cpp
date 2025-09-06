@@ -9,6 +9,17 @@ TickParser::TickParser(TickRingBuffer& ringBuffer, const std::vector<std::string
         m_ema_store.emplace(products, EMA(5));
 }
 
+auto copy_field = [](auto &doc, const char* field_name, char* dest) {
+    auto val = doc[field_name];
+    if (!val.error()) {
+        auto str = val.value().get_string().value();
+        std::memcpy(dest, str.data(), str.size());
+        dest[str.size()] = '\0';
+    } else {
+        dest[0] = '\0'; // field missing → empty string
+    }
+};
+
 bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
     try {
         auto doc = m_parser.iterate(payload);
@@ -18,6 +29,11 @@ bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
         if (type_field.error()) return true;
         auto type_str = type_field.get_string().value();
         if (std::strncmp(type_str.data(), "ticker", 6) != 0) return true;
+
+        // Parsing iso time string for EMA
+        // Optimization: Use system time instead of exchange time since parsing iso string is very slow
+        // auto tick_time = parse_iso8601(time_str, time_str.size());
+        auto tick_time = std::chrono::steady_clock::now();
         
         // Acquire next free slot
         Tick* slot = m_ring_buffer.acquire_free_slot();
@@ -30,38 +46,35 @@ bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
         std::memcpy(slot->type, type_str.data(), type_str.size());
         slot->type[type_str.size()] = '\0';
         
-        auto product_str = doc["product_id"].get_string().value();
-        std::memcpy(slot->product_id, product_str.data(), product_str.size());
-        slot->product_id[product_str.size()] = '\0';
+        copy_field(doc, "product_id", slot->product_id);
+        copy_field(doc, "side", slot->side);
+        copy_field(doc, "time", slot->time);
         
-        auto side_str = doc["side"].get_string().value();
-        std::memcpy(slot->side, side_str.data(), side_str.size());
-        slot->side[side_str.size()] = '\0';
-        
-        auto time_str = doc["time"].get_string().value();
+        auto seq_res = doc["sequence"];
+        if (!seq_res.error()) {
+            slot->sequence = seq_res.get_uint64();
+        } else {
+            slot->sequence = 0;
+        }
 
-        // Parsing iso time string for EMA
-        // Optimization: Use system time instead of exchange time if clocks are in sync
-        auto tick_time = parse_iso8601(time_str, time_str.size());
+        auto trade_id = doc["trade_id"];
+        if (!trade_id.error()) {
+            slot->trade_id = trade_id.get_uint64();
+        } else {
+            slot->trade_id = 0;
+        }
 
-        std::memcpy(slot->time, time_str.data(), time_str.size());
-        slot->time[time_str.size()] = '\0';
-        // std::cout<<time_str<<" " << slot->time<<std::endl;
-
-        slot->sequence = doc["sequence"].get_uint64();
-        slot->trade_id = doc["trade_id"].get_uint64();
-
-        slot->price = std::stod(std::string(doc["price"].get_string().value()));
-        slot->open_24h = std::stod(std::string(doc["open_24h"].get_string().value()));
-        slot->volume_24h = std::stod(std::string(doc["volume_24h"].get_string().value()));
-        slot->low_24h = std::stod(std::string(doc["low_24h"].get_string().value()));
-        slot->high_24h = std::stod(std::string(doc["high_24h"].get_string().value()));
-        slot->volume_30d = std::stod(std::string(doc["volume_30d"].get_string().value()));
-        slot->best_bid = std::stod(std::string(doc["best_bid"].get_string().value()));
-        slot->best_bid_size = std::stod(std::string(doc["best_bid_size"].get_string().value()));
-        slot->best_ask = std::stod(std::string(doc["best_ask"].get_string().value()));
-        slot->best_ask_size = std::stod(std::string(doc["best_ask_size"].get_string().value()));
-        slot->last_size = std::stod(std::string(doc["last_size"].get_string().value()));
+        slot->price = !doc["price"].error() ? std::stod(std::string(doc["price"].get_string().value())) : 0.0;
+        slot->open_24h = !doc["open_24h"].error() ? std::stod(std::string(doc["open_24h"].get_string().value())) : 0.0;
+        slot->volume_24h = !doc["volume_24h"].error() ? std::stod(std::string(doc["volume_24h"].get_string().value())) : 0.0;
+        slot->low_24h = !doc["low_24h"].error() ? std::stod(std::string(doc["low_24h"].get_string().value())) : 0.0;
+        slot->high_24h = !doc["high_24h"].error() ? std::stod(std::string(doc["high_24h"].get_string().value())) : 0.0;
+        slot->volume_30d = !doc["volume_30d"].error() ? std::stod(std::string(doc["volume_30d"].get_string().value())) : 0.0;
+        slot->best_bid = !doc["best_bid"].error() ? std::stod(std::string(doc["best_bid"].get_string().value())) : 0.0;
+        slot->best_bid_size = !doc["best_bid_size"].error() ? std::stod(std::string(doc["best_bid_size"].get_string().value())) : 0.0;
+        slot->best_ask = !doc["best_ask"].error() ? std::stod(std::string(doc["best_ask"].get_string().value())) : 0.0;
+        slot->best_ask_size = !doc["best_ask_size"].error() ? std::stod(std::string(doc["best_ask_size"].get_string().value())) : 0.0;
+        slot->last_size = !doc["last_size"].error() ? std::stod(std::string(doc["last_size"].get_string().value())) : 0.0;
         slot->mid_price = (slot->best_bid + slot->best_ask) / 2;
        
         auto& product_ema = m_ema_store.at(slot->product_id);

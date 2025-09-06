@@ -10,7 +10,7 @@
 namespace sparkland {
 
 CoinbaseClient::CoinbaseClient(const std::string& uri, const std::vector<std::string>& product_ids)
-    : m_uri(uri), m_product_ids(product_ids) {
+    : m_uri(uri), m_product_ids(product_ids), m_logger(Logger::getInstance()) {
     m_client.clear_access_channels(websocketpp::log::alevel::all);
     m_client.init_asio();
 
@@ -30,10 +30,11 @@ CoinbaseClient::~CoinbaseClient() {
 void CoinbaseClient::start() {
     if (m_running.exchange(true)) return;
 
+    m_logger.info("Starting coinbase client");
     websocketpp::lib::error_code ec;
     auto con = m_client.get_connection(m_uri, ec);
     if (ec) {
-        std::cerr << "Connection error: " << ec.message() << "\n";
+        m_logger.error("Connection error: " + ec.message());
         return;
     }
 
@@ -48,7 +49,7 @@ void CoinbaseClient::start() {
 void CoinbaseClient::stop() {
     if (!m_running.exchange(false)) return;
 
-    std::cout<<"Stopping coinbase client"<<std::endl;
+    m_logger.info("Stopping coinbase client");
 
     websocketpp::lib::error_code ec;
     m_client.close(m_hdl, websocketpp::close::status::normal, "Client shutdown", ec);
@@ -63,7 +64,8 @@ void CoinbaseClient::set_message_handler(MessageHandler handler) {
 }
 
 void CoinbaseClient::on_open(websocketpp::connection_hdl hdl) {
-    std::cout << "Connected to Coinbase WS\n";
+    m_connected.store(true, std::memory_order_release);
+    m_logger.info("Connected to Coinbase WS");
     send_subscribe();
 }
 
@@ -75,11 +77,17 @@ void CoinbaseClient::on_message(websocketpp::connection_hdl, AsioClient::message
 }
 
 void CoinbaseClient::on_fail(websocketpp::connection_hdl) {
-    std::cerr << "Connection failed. Will need reconnection strategy.\n";
+    m_logger.error("Connection failed");
+    m_connected.store(false, std::memory_order_relaxed);
 }
 
 void CoinbaseClient::on_close(websocketpp::connection_hdl) {
-    std::cerr << "Connection closed.\n";
+    m_logger.info("Connection closed");
+    m_connected.store(false, std::memory_order_relaxed);
+}
+
+bool CoinbaseClient::is_connected() const {
+    return m_connected.load(std::memory_order_acquire);
 }
 
 void CoinbaseClient::send_subscribe() {
@@ -96,7 +104,7 @@ void CoinbaseClient::send_subscribe() {
     websocketpp::lib::error_code ec;
     m_client.send(m_hdl, oss.str(), websocketpp::frame::opcode::text, ec);
     if (ec) {
-        std::cerr << "Send error: " << ec.message() << "\n";
+        m_logger.error("Send error: " + ec.message());
     }
 }
 
@@ -108,9 +116,8 @@ ContextPtr CoinbaseClient::on_tls_init(websocketpp::connection_hdl) {
                          boost::asio::ssl::context::no_sslv3 |
                          boost::asio::ssl::context::single_dh_use);
     } catch (std::exception& e) {
-        std::cout << "TLS Initialization Error: " << e.what() << std::endl;
+        m_logger.error(std::string("TLS Initialization Error: ") + e.what());
     }
-
     return ctx;
 }
 

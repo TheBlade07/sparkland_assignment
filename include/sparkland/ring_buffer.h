@@ -11,11 +11,6 @@ template <typename T, size_t Capacity>
 class RingBuffer {
     static_assert(Capacity > 1, "Capacity must be greater than 1");
 
-private:
-    alignas(64) std::atomic<size_t> m_head{0};  // Pop index
-    alignas(64) std::atomic<size_t> m_tail{0};  // Push index
-    std::array<T, Capacity> m_buffer;           // Preallocated slots
-
 public:
     RingBuffer() = default;
     ~RingBuffer() = default;
@@ -88,6 +83,11 @@ public:
     constexpr size_t capacity() const {
         return Capacity - 1; // one slot always unused
     }
+
+private:
+    alignas(64) std::atomic<size_t> m_head{0};  // Pop index
+    alignas(64) std::atomic<size_t> m_tail{0};  // Push index
+    std::array<T, Capacity> m_buffer;           // Preallocated slots
 };
 
 }

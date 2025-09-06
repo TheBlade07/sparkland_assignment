@@ -15,6 +15,15 @@ namespace sparkland {
 class TickParser {
 public:
     TickParser(TickRingBuffer& ringBuffer, const std::vector<std::string>& product_ids);
+
+    // Delete copy/move operations since ring_buffer reference can cause issue
+    TickParser(const TickParser&) = delete;
+    TickParser& operator=(const TickParser&) = delete;
+    TickParser(TickParser&&) = delete;
+    TickParser& operator=(TickParser&&) = delete;
+    
+    // Explicit destructor
+    ~TickParser() = default;
     
     // Parse incoming JSON packet into next available Tick slot
     // Returns true if successfully parsed & pushed, false if buffer full or parse error
@@ -24,6 +33,8 @@ private:
     TickRingBuffer& m_ring_buffer;
     simdjson::ondemand::parser m_parser;
     std::unordered_map<std::string, EMA> m_ema_store;
+    std::chrono::nanoseconds total_duration{0};
+    int counter{0};
 
     inline std::chrono::system_clock::time_point parse_iso8601(std::string_view str, size_t len) {
         // Expected format: YYYY-MM-DDTHH:MM:SS.ssssssZ

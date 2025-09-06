@@ -16,6 +16,12 @@ public:
     CSVLogger(TickRingBuffer& ring_buffer, const std::string& filename);
     ~CSVLogger();
 
+    // Delete copy/move operations
+    CSVLogger(const CSVLogger&) = delete;
+    CSVLogger& operator=(const CSVLogger&) = delete;
+    CSVLogger(CSVLogger&&) = delete;
+    CSVLogger& operator=(CSVLogger&&) = delete;
+
     void start();
     void stop();
 

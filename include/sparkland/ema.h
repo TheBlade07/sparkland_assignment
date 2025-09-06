@@ -10,7 +10,7 @@ class EMA {
 public:
     EMA(double time_period) : m_time_period(time_period), m_initialized(false) {}
 
-    void update(double price, double mid_price, std::chrono::system_clock::time_point tick_time) {
+    void update(double price, double mid_price, std::chrono::steady_clock::time_point tick_time) {
         if (!m_initialized) {
             m_price_ema = price;
             m_mid_ema   = mid_price;
@@ -37,7 +37,7 @@ private:
     double m_price_ema = 0.0;
     double m_mid_ema   = 0.0;
     bool m_initialized;
-    std::chrono::system_clock::time_point m_last_update;
+    std::chrono::steady_clock::time_point m_last_update;
     static constexpr double MIN_ALPHA = 0.001;
 };
 

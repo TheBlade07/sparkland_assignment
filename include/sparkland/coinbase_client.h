@@ -10,6 +10,8 @@
 #include <thread>
 #include <atomic>
 
+#include "sparkland/logger.h"
+
 
 namespace sparkland{
 
@@ -33,6 +35,7 @@ public:
     void stop();
 
     void set_message_handler(MessageHandler handler);
+    bool is_connected() const;
 
 private:
     void on_open(websocketpp::connection_hdl hdl);
@@ -43,15 +46,15 @@ private:
     void send_subscribe();
     ContextPtr on_tls_init(websocketpp::connection_hdl);
 
-private:
     std::string m_uri;
     std::vector<std::string> m_product_ids;
     MessageHandler m_handler;
-
     AsioClient m_client;
     websocketpp::connection_hdl m_hdl;
     std::thread m_thread;
     std::atomic<bool> m_running{false};
+    std::atomic<bool> m_connected{false};
+    Logger& m_logger;
 };
 
 }
