@@ -48,6 +48,8 @@ void CoinbaseClient::start() {
 void CoinbaseClient::stop() {
     if (!m_running.exchange(false)) return;
 
+    std::cout<<"Stopping coinbase client"<<std::endl;
+
     websocketpp::lib::error_code ec;
     m_client.close(m_hdl, websocketpp::close::status::normal, "Client shutdown", ec);
 

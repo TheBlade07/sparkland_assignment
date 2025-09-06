@@ -5,7 +5,7 @@
 
 namespace sparkland {
 
-TickParser::TickParser(RingBuffer<Tick, 1024>& ringBuffer)
+TickParser::TickParser(TickRingBuffer& ringBuffer)
     : m_ring_buffer(ringBuffer) {}
 
 bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
@@ -24,8 +24,6 @@ bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
             // Buffer full
             return false;
         }
-
-        std::cout<<"Yes"<<std::endl;
 
         //Parse tick
         std::memcpy(slot->type, type_str.data(), type_str.size());
@@ -57,7 +55,7 @@ bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
         slot->best_ask = std::stod(std::string(doc["best_ask"].get_string().value()));
         slot->best_ask_size = std::stod(std::string(doc["best_ask_size"].get_string().value()));
         slot->last_size = std::stod(std::string(doc["last_size"].get_string().value()));
-        
+
         // Make it available for logging
         m_ring_buffer.publish_slot();
         return true;
