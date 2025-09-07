@@ -33,8 +33,6 @@ private:
     TickRingBuffer& m_ring_buffer;
     simdjson::ondemand::parser m_parser;
     std::unordered_map<std::string, EMA> m_ema_store;
-    std::chrono::nanoseconds total_duration{0};
-    int counter{0};
 
     inline std::chrono::system_clock::time_point parse_iso8601(std::string_view str, size_t len) {
         // Expected format: YYYY-MM-DDTHH:MM:SS.ssssssZ
