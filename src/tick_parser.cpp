@@ -26,7 +26,10 @@ bool TickParser::parse_and_push(simdjson::padded_string_view payload) {
         
         // Consider only ticker messages
         auto type_field = doc["type"];
-        if (type_field.error()) return true;
+
+        // If not able to parse type field return error
+        if (type_field.error()) return false;
+
         auto type_str = type_field.get_string().value();
         if (std::strncmp(type_str.data(), "ticker", 6) != 0) return true;
 

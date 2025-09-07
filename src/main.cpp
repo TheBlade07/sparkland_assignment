@@ -46,7 +46,7 @@ int main() {
     csv_logger.start();
     client.start();
 
-    logger.info("Waiting for connection... (Press Ctrl+C to stop)");
+    std::cout<<"Application Started... (Press Ctrl+C to stop)"<<std::endl;
 
     // coinbase connection monitoring
     auto last_connection_check = std::chrono::steady_clock::now();

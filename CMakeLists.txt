@@ -66,6 +66,7 @@ enable_testing()
 # Add test executable
 add_executable(sparkland_tests
     tests/test_ema.cpp
+    tests/test_tick_parser.cpp
 )
 
 target_link_libraries(sparkland_tests
